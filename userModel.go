@@ -6,16 +6,13 @@ import "github.com/jinzhu/gorm"
 type User struct {
 	gorm.Model
 
-	ID int `gorm:"primary_key"`
-
-	Domain   Domain
-	DomainID int `gorm:"index;not null"`
+	Domain   Domain `gorm:"ForeignKey:DomainID"`
+	DomainID int    `gorm:"index;not null"`
 
 	Email    string
 	Password string
 }
 
-// TableName set proper tablename
 func (User) TableName() string {
 	return "virtual_users"
 }

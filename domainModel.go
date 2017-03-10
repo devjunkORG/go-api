@@ -6,9 +6,12 @@ import "github.com/jinzhu/gorm"
 type Domain struct {
 	gorm.Model
 
-	ID   int    `gorm:"primary_key"`
 	name string `gorm:"not null"`
 
 	Users   []User
 	Aliases []Alias
+}
+
+func (Domain) TableName() string {
+	return "virtual_domains"
 }
