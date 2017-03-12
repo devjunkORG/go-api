@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
 
@@ -12,48 +13,66 @@ import (
 func main() {
 	router := gin.Default()
 
-	router.GET("/users", getUsers)
-	router.POST("/users", createUser)
+	db, err := gorm.Open("sqlite3", "./mailserver.db")
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	router.GET("/users", getUsers(db))
+	router.POST("/users", createUser(db))
 
 	router.Run(":8080")
 
 }
 
-func getUsers(c *gin.Context) {
+func getUsers(db *gorm.DB) gin.HandlerFunc {
+	fn := func(c *gin.Context) {
+		var users []User
 
-	var users []User
+		db.Find(&users)
 
-	db, err := gorm.Open("sqlite3", "./mailserver.db")
-
-	if err != nil {
-		log.Fatal(err)
+		responseObject := gin.H{
+			"data": users,
+		}
+		c.IndentedJSON(http.StatusOK, responseObject)
 	}
 
-	db.Find(&users)
-
-	responseObject := gin.H{
-		"data": users,
-	}
-	c.IndentedJSON(http.StatusOK, responseObject)
+	return gin.HandlerFunc(fn)
 }
 
-func createUser(c *gin.Context) {
+func createUser(db *gorm.DB) gin.HandlerFunc {
+	fn := func(c *gin.Context) {
+		var formData UserForm
 
-	db, err := gorm.Open("sqlite3", "./mailserver.db")
-	if err != nil {
-		log.Fatal(err)
-	}
+		requestError := c.Bind(&formData)
 
-	var json UserForm
+		if requestError == nil {
+			user := User{
+				Email:    formData.Email,
+				Password: formData.Password,
+				DomainID: formData.DomainID,
+			}
 
-	if c.BindJSON(&json) == nil {
-		user := User{
-			Email:    json.Email,
-			Password: json.Password,
-			DomainID: json.DomainID,
+			db.Create(&user)
+
+			jsonResponse, err := json.Marshal(user)
+
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			responseObject := gin.H{
+				"data": jsonResponse,
+			}
+			c.IndentedJSON(http.StatusOK, responseObject)
+		} else {
+			responseObject := gin.H{
+				"error": requestError.Error(),
+			}
+			c.IndentedJSON(http.StatusBadRequest, responseObject)
 		}
-
-		db.Create(&user)
 	}
 
+	return gin.HandlerFunc(fn)
 }
